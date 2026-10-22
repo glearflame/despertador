@@ -16,14 +16,14 @@ jobs:
         python-version: ["3.10", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Instalar Tcl/Tk e Xvfb
         run: |
           sudo apt-get update
           sudo apt-get install -y tk8.6 tcl8.6 xvfb
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
