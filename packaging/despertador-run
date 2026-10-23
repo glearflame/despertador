@@ -1,0 +1,24 @@
+#!/bin/sh
+# despertador-run — launcher que resolve o diretório do próprio script.
+#
+# Funciona tanto no repositório (packaging/despertador-run) quanto via symlink
+# em ~/.local/bin/despertador-run, criado por packaging/install-service.sh.
+set -eu
+
+SELF="$(readlink -f -- "$0")"
+DIR="$(dirname -- "$SELF")"
+REPO="$(dirname -- "$DIR")"
+
+if [ ! -f "$REPO/despertador.py" ]; then
+    echo "despertador-run: não encontrei $REPO/despertador.py" >&2
+    exit 1
+fi
+
+PYTHON="${DESPERTADOR_PYTHON:-python3}"
+if ! command -v "$PYTHON" >/dev/null 2>&1; then
+    echo "despertador-run: '$PYTHON' não encontrado no PATH" >&2
+    exit 1
+fi
+
+# --continuo: mesmo sem TTY, segue o laço depois de tocar (serviço systemd).
+exec "$PYTHON" "$REPO/despertador.py" run --ring-seconds 60 --continuo "$@"

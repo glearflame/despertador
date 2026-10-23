@@ -214,6 +214,7 @@ def _laco_alarmes(
     ring_seconds: float,
     snooze: int,
     interativo: bool,
+    continuo: bool = False,
     inibidor=None,
     relogio=None,
     tocar_fn=None,
@@ -261,9 +262,11 @@ def _laco_alarmes(
             registrar_fn(alarme["id"], ocorrencia, acao, snooze_min)
             if acao == "parar" and alarme.get("once"):
                 print(f"alarme {alarme['id']} era --once e foi desativado.")
-            if not interativo:
+            if not interativo and not continuo:
                 # Sem terminal não há soneca/parar: toca --ring-seconds e encerra.
                 return 0
+            # Modo contínuo (systemd/daemon): continua o laço para os próximos
+            # alarmes, mesmo sem TTY e mesmo depois de um EOF hipotético.
             continue
 
         # Sem ocorrência vencida: se não há alarme pendente, o PC pode dormir
@@ -295,6 +298,7 @@ def _rodar(args, *, interativo: bool) -> int:
             ring_seconds=args.ring_seconds,
             snooze=args.snooze,
             interativo=interativo,
+            continuo=args.continuo,
             inibidor=inibidor,
         )
     except KeyboardInterrupt:
@@ -458,6 +462,14 @@ def construir_parser() -> argparse.ArgumentParser:
         metavar="MIN",
         help="minutos de soneca padrão caso o alarme não tenha o seu (padrão: 5)",
     )
+    executar.add_argument(
+        "--continuo",
+        action="store_true",
+        help=(
+            "continua o laço após tocar, mesmo sem TTY (ideal para o serviço "
+            "systemd); sem esta opção o modo não interativo encerra após o toque"
+        ),
+    )
     executar.set_defaults(func=cmd_run)
 
     inibir = sub.add_parser(
@@ -489,6 +501,11 @@ def construir_parser() -> argparse.ArgumentParser:
         default=5,
         metavar="MIN",
         help="minutos de soneca padrão caso o alarme não tenha o seu (padrão: 5)",
+    )
+    inibir.add_argument(
+        "--continuo",
+        action="store_true",
+        help="continua o laço após tocar, mesmo sem TTY",
     )
     inibir.set_defaults(func=cmd_inhibit)
 

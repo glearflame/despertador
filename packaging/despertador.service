@@ -1,0 +1,19 @@
+[Unit]
+Description=Despertador — alarmes, relógio mundial e cronômetro
+Documentation=https://github.com/glearflame/despertador
+# Só inicia quando houver uma sessão gráfica (o som/notificação precisam dela).
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+# O launcher resolve o diretório real do repositório (via symlink em ~/.local/bin).
+ExecStart=%h/.local/bin/despertador-run
+# Sem TTY: toca por 60 s e continua o laço para os próximos alarmes.
+Restart=on-failure
+RestartSec=5
+# O laço adquire o inhibitor do logind por conta própria.
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

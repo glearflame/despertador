@@ -1,7 +1,7 @@
 PYTHON ?= python3
 RUFF ?= $(shell command -v ruff || echo "$(PYTHON) -m ruff")
 
-.PHONY: test lint check clean gui icon appimage verify-appimage
+.PHONY: test lint check clean gui icon appimage verify-appimage install-service uninstall-service
 
 test:
 	$(PYTHON) -m pytest
@@ -25,6 +25,14 @@ appimage:
 verify-appimage:
 	chmod +x scripts/verify_appimage.sh
 	./scripts/verify_appimage.sh
+
+install-service:
+	chmod +x packaging/install-service.sh packaging/despertador-run
+	./packaging/install-service.sh
+
+uninstall-service:
+	chmod +x packaging/install-service.sh
+	./packaging/install-service.sh --remove
 
 clean:
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
