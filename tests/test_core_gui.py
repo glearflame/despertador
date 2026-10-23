@@ -136,3 +136,21 @@ def test_tocador_som_com_player_falso(monkeypatch):
 
     tocador.parar()
     assert tocador.tocando is False
+
+
+def test_config_gui_padrao_quando_arquivo_nao_existe(tmp_path):
+    assert core.carregar_config_gui(tmp_path / "gui.json") == {"tema": "claro"}
+
+
+def test_config_gui_salva_e_carrega_tema(tmp_path):
+    caminho = tmp_path / "config" / "gui.json"
+    core.salvar_config_gui({"tema": "escuro"}, caminho)
+    assert core.carregar_config_gui(caminho) == {"tema": "escuro"}
+
+    core.salvar_config_gui({"tema": "claro"}, caminho)
+    assert core.carregar_config_gui(caminho) == {"tema": "claro"}
+
+
+def test_config_gui_rejeita_tema_invalido(tmp_path):
+    with pytest.raises(ValueError):
+        core.salvar_config_gui({"tema": "neon"}, tmp_path / "gui.json")

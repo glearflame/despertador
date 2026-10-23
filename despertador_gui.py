@@ -26,13 +26,55 @@ from despertador.timers import Cronometro, Temporizador, formatar_tempo, parse_d
 
 LOG = logging.getLogger("despertador.gui")
 
-COR_FUNDO = "#f2efe7"
-COR_CARTAO = "#ffffff"
-COR_DESTAQUE = "#2f4858"
-COR_TEXTO = "#22333b"
-COR_SUAVE = "#68767d"
-COR_ALERTA = "#a63a4a"
-COR_BORDA = "#dcd6c8"
+PALETAS = {
+    "claro": {
+        "fundo": "#f2efe7",
+        "cartao": "#ffffff",
+        "destaque": "#2f4858",
+        "texto": "#22333b",
+        "suave": "#68767d",
+        "alerta": "#a63a4a",
+        "borda": "#dcd6c8",
+        "cabecalho": "#243b4a",
+        "cabecalho_texto": "#ffffff",
+        "cabecalho_suave": "#cfd8dc",
+        "inativo": "#8d969b",
+        "sono_ok": "#b7e4c7",
+        "sono_alerta": "#ffd6a5",
+    },
+    "escuro": {
+        "fundo": "#161b22",
+        "cartao": "#21262d",
+        "destaque": "#8ab4d0",
+        "texto": "#e6edf3",
+        "suave": "#9aa7b2",
+        "alerta": "#e06c75",
+        "borda": "#30363d",
+        "cabecalho": "#0d1117",
+        "cabecalho_texto": "#ffffff",
+        "cabecalho_suave": "#9aa7b2",
+        "inativo": "#6e7681",
+        "sono_ok": "#7ee787",
+        "sono_alerta": "#f0883e",
+    },
+}
+
+TEMA_PADRAO = "claro"
+
+# Cores ativas (recalculadas por Aplicativo._aplicar_tema).
+COR_FUNDO = PALETAS[TEMA_PADRAO]["fundo"]
+COR_CARTAO = PALETAS[TEMA_PADRAO]["cartao"]
+COR_DESTAQUE = PALETAS[TEMA_PADRAO]["destaque"]
+COR_TEXTO = PALETAS[TEMA_PADRAO]["texto"]
+COR_SUAVE = PALETAS[TEMA_PADRAO]["suave"]
+COR_ALERTA = PALETAS[TEMA_PADRAO]["alerta"]
+COR_BORDA = PALETAS[TEMA_PADRAO]["borda"]
+COR_CABECALHO = PALETAS[TEMA_PADRAO]["cabecalho"]
+COR_CAB_TEXTO = PALETAS[TEMA_PADRAO]["cabecalho_texto"]
+COR_CAB_SUAVE = PALETAS[TEMA_PADRAO]["cabecalho_suave"]
+COR_INATIVO = PALETAS[TEMA_PADRAO]["inativo"]
+COR_SONO_OK = PALETAS[TEMA_PADRAO]["sono_ok"]
+COR_SONO_ALERTA = PALETAS[TEMA_PADRAO]["sono_alerta"]
 
 FONTE = "DejaVu Sans"
 FONTE_MONO = "DejaVu Sans Mono"
@@ -41,12 +83,13 @@ FONTE_MONO = "DejaVu Sans Mono"
 class Aplicativo:
     """Janela principal do despertador."""
 
-    def __init__(self, root: tk.Tk, aba_inicial: int = 0):
+    def __init__(self, root: tk.Tk, aba_inicial: int = 0, tema: str | None = None):
         self.root = root
         self.root.title("Despertador")
         self.root.geometry("1080x720")
         self.root.minsize(900, 600)
-        self.root.configure(background=COR_FUNDO)
+        self._tema = tema if tema in PALETAS else TEMA_PADRAO
+        self._aplicar_tema(self._tema, persistir=False)
 
         self._desvio = 0.0
         self._sincronizando = False
@@ -110,37 +153,176 @@ class Aplicativo:
             "Treeview",
             background=COR_CARTAO,
             fieldbackground=COR_CARTAO,
+            foreground=COR_TEXTO,
             rowheight=28,
         )
-        estilo.configure("Treeview.Heading", font=(FONTE, 10, "bold"))
-        estilo.configure("TButton", padding=(10, 6))
+        estilo.configure(
+            "Treeview.Heading",
+            font=(FONTE, 10, "bold"),
+            background=COR_BORDA,
+            foreground=COR_TEXTO,
+        )
+        estilo.map(
+            "Treeview",
+            background=[("selected", COR_DESTAQUE)],
+            foreground=[("selected", COR_CARTAO)],
+        )
+        estilo.configure(
+            "TButton", padding=(10, 6), background=COR_CARTAO, foreground=COR_TEXTO
+        )
+        estilo.map(
+            "TButton",
+            background=[("active", COR_BORDA)],
+            foreground=[("disabled", COR_SUAVE)],
+        )
+        for nome in ("TEntry", "TSpinbox"):
+            estilo.configure(
+                nome,
+                fieldbackground=COR_CARTAO,
+                foreground=COR_TEXTO,
+                insertcolor=COR_TEXTO,
+                bordercolor=COR_BORDA,
+                lightcolor=COR_BORDA,
+                darkcolor=COR_BORDA,
+            )
+        for nome in ("TCheckbutton", "TRadiobutton"):
+            estilo.configure(nome, background=COR_FUNDO, foreground=COR_TEXTO)
+            estilo.map(nome, background=[("active", COR_FUNDO)])
+        estilo.configure(
+            "TScrollbar", background=COR_BORDA, troughcolor=COR_FUNDO, arrowcolor=COR_TEXTO
+        )
+
+    # ------------------------------------------------------------------
+    # Tema claro/escuro
+    # ------------------------------------------------------------------
+
+    def _atualizar_rotulo_tema(self) -> None:
+        if hasattr(self, "btn_tema"):
+            alvo = "claro" if self._tema == "escuro" else "escuro"
+            icone = "☀" if alvo == "claro" else "☾"
+            self.btn_tema.config(
+                text=f"{icone} Tema {alvo}", bg=COR_CABECALHO, fg=COR_CAB_TEXTO
+            )
+
+    def _alternar_tema(self) -> None:
+        novo = "claro" if self._tema == "escuro" else "escuro"
+        self._aplicar_tema(novo, persistir=True)
+        LOG.info("tema alterado para %s", novo)
+
+    def _aplicar_tema(self, nome: str, persistir: bool = True) -> None:
+        """Troca a paleta, os estilos ttk e as cores dos widgets existentes."""
+        global COR_FUNDO, COR_CARTAO, COR_DESTAQUE, COR_TEXTO, COR_SUAVE
+        global COR_ALERTA, COR_BORDA, COR_CABECALHO, COR_CAB_TEXTO, COR_CAB_SUAVE
+        global COR_INATIVO, COR_SONO_OK, COR_SONO_ALERTA
+
+        nome = nome if nome in PALETAS else TEMA_PADRAO
+        anterior = PALETAS.get(self._tema, PALETAS[TEMA_PADRAO])
+        nova = PALETAS[nome]
+        mapa = {}
+        for chave, valor in anterior.items():
+            if valor != nova[chave]:
+                mapa.setdefault(valor, nova[chave])
+
+        self._tema = nome
+        COR_FUNDO = nova["fundo"]
+        COR_CARTAO = nova["cartao"]
+        COR_DESTAQUE = nova["destaque"]
+        COR_TEXTO = nova["texto"]
+        COR_SUAVE = nova["suave"]
+        COR_ALERTA = nova["alerta"]
+        COR_BORDA = nova["borda"]
+        COR_CABECALHO = nova["cabecalho"]
+        COR_CAB_TEXTO = nova["cabecalho_texto"]
+        COR_CAB_SUAVE = nova["cabecalho_suave"]
+        COR_INATIVO = nova["inativo"]
+        COR_SONO_OK = nova["sono_ok"]
+        COR_SONO_ALERTA = nova["sono_alerta"]
+
+        if mapa:
+            self._recolorir(self.root, mapa)
+        self.root.configure(background=COR_FUNDO)
+        self._configurar_estilo()
+        if hasattr(self, "arvore"):
+            self.arvore.tag_configure("inativo", foreground=COR_INATIVO)
+        if hasattr(self, "canvas_cards"):
+            self.canvas_cards.configure(background=COR_FUNDO)
+        self._atualizar_rotulo_tema()
+        if persistir:
+            try:
+                core.salvar_config_gui({"tema": nome})
+            except OSError as erro:
+                LOG.warning("não consegui salvar o tema: %s", erro)
+
+    def _recolorir(self, widget, mapa: dict[str, str]) -> None:
+        """Percorre a árvore de widgets trocando as cores da paleta antiga."""
+        opcoes = (
+            "background",
+            "foreground",
+            "activebackground",
+            "activeforeground",
+            "highlightbackground",
+            "highlightcolor",
+            "troughcolor",
+            "selectbackground",
+            "selectforeground",
+            "insertbackground",
+        )
+        for opcao in opcoes:
+            try:
+                valor = widget.cget(opcao)
+            except tk.TclError:
+                continue
+            if valor in mapa:
+                try:
+                    widget.configure(**{opcao: mapa[valor]})
+                except tk.TclError:
+                    pass
+        for filho in widget.winfo_children():
+            self._recolorir(filho, mapa)
 
     def _construir_cabecalho(self) -> None:
-        cabecalho = tk.Frame(self.root, bg=COR_DESTAQUE)
+        cabecalho = tk.Frame(self.root, bg=COR_CABECALHO)
         cabecalho.pack(fill="x")
         tk.Label(
             cabecalho,
             text="Despertador",
-            bg=COR_DESTAQUE,
-            fg="white",
+            bg=COR_CABECALHO,
+            fg=COR_CAB_TEXTO,
             font=(FONTE, 17, "bold"),
         ).pack(side="left", padx=18, pady=12)
         self.lbl_cabecalho = tk.Label(
             cabecalho,
             text="",
-            bg=COR_DESTAQUE,
-            fg="#cfd8dc",
+            bg=COR_CABECALHO,
+            fg=COR_CAB_SUAVE,
             font=(FONTE_MONO, 12),
         )
         self.lbl_cabecalho.pack(side="right", padx=18)
         self.lbl_sono = tk.Label(
             cabecalho,
             text="",
-            bg=COR_DESTAQUE,
-            fg="#cfd8dc",
+            bg=COR_CABECALHO,
+            fg=COR_CAB_SUAVE,
             font=(FONTE, 10, "bold"),
         )
         self.lbl_sono.pack(side="right", padx=(0, 18))
+        self.btn_tema = tk.Button(
+            cabecalho,
+            text="",
+            command=self._alternar_tema,
+            bg=COR_CABECALHO,
+            fg=COR_CAB_TEXTO,
+            activebackground=COR_DESTAQUE,
+            activeforeground=COR_CAB_TEXTO,
+            relief="flat",
+            borderwidth=0,
+            font=(FONTE, 10, "bold"),
+            cursor="hand2",
+            padx=10,
+            pady=4,
+        )
+        self.btn_tema.pack(side="right", padx=(0, 12))
+        self._atualizar_rotulo_tema()
 
     def _construir_abas(self, aba_inicial: int = 0) -> None:
         self.abas = ttk.Notebook(self.root)
@@ -206,7 +388,7 @@ class Aplicativo:
         self.arvore.configure(yscrollcommand=barra_rolagem.set)
         self.arvore.pack(side="left", fill="both", expand=True)
         barra_rolagem.pack(side="right", fill="y")
-        self.arvore.tag_configure("inativo", foreground="#8d969b")
+        self.arvore.tag_configure("inativo", foreground=COR_INATIVO)
         self.arvore.bind("<Double-1>", lambda _evento: self._editar_selecionado())
 
         rodape = ttk.Label(
@@ -292,15 +474,15 @@ class Aplicativo:
 
         if self.inibidor.ativo:
             self.lbl_sono.config(
-                text=inhibit.texto_estado(alarmes, agora), fg="#b7e4c7"
+                text=inhibit.texto_estado(alarmes, agora), fg=COR_SONO_OK
             )
         elif inhibit.what_para_inibir(alarmes, agora):
             self.lbl_sono.config(
-                text="⚠ inibidor indisponível — o PC pode dormir", fg="#ffd6a5"
+                text="⚠ inibidor indisponível — o PC pode dormir", fg=COR_SONO_ALERTA
             )
         else:
             self.lbl_sono.config(
-                text=inhibit.texto_estado(alarmes, agora), fg="#cfd8dc"
+                text=inhibit.texto_estado(alarmes, agora), fg=COR_CAB_SUAVE
             )
 
     def _id_selecionado(self) -> int | None:
@@ -538,7 +720,7 @@ class Aplicativo:
         ttk.Label(
             self.aba_mundial,
             text=(
-                "Fusos vêm do banco tz do sistema (zoneinfo), sem internet. "
+                "Fusos vêm do tzdata embutido ou do sistema (zoneinfo), sem internet. "
                 "A sincronização é opcional e só ajusta a exibição."
             ),
             foreground=COR_SUAVE,
@@ -1156,7 +1338,33 @@ def main(argv: list[str] | None = None) -> int:
         default="alarmes",
         help="aba aberta ao iniciar (padrão: alarmes)",
     )
+    parser.add_argument(
+        "--tema",
+        choices=["claro", "escuro"],
+        default=None,
+        help="tema inicial; sem esta opção usa o salvo em gui.json",
+    )
+    parser.add_argument(
+        "--verificar-fusos",
+        action="store_true",
+        help="diagnóstico: imprime fusos IANA resolvidos e encerra (sem Tk)",
+    )
     args = parser.parse_args(argv)
+
+    if args.verificar_fusos:
+        agora = datetime.now()
+        for zona in ("Asia/Tokyo", "America/Sao_Paulo"):
+            try:
+                local = agora.astimezone(wc.obter_zona(zona))
+            except Exception as erro:  # diagnóstico deve explicar a falha
+                print(f"{zona}: ERRO {erro}", file=sys.stderr)
+                return 1
+            print(
+                f"{zona}: {local.strftime('%Y-%m-%d %H:%M:%S %Z')} "
+                f"offset={local.utcoffset()}"
+            )
+        print(f"TZPATH={wc.zoneinfo.TZPATH}")
+        return 0
 
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.WARNING,
@@ -1170,7 +1378,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"erro: não consegui abrir a interface gráfica: {erro}", file=sys.stderr)
         return 1
 
-    app = Aplicativo(root, aba_inicial={"alarmes": 0, "mundial": 1, "relogio": 2}[args.tab])
+    if args.tema:
+        try:
+            core.salvar_config_gui({"tema": args.tema})
+        except OSError as erro:
+            LOG.warning("não consegui salvar o tema inicial: %s", erro)
+    tema = args.tema or core.carregar_config_gui()["tema"]
+    app = Aplicativo(
+        root,
+        aba_inicial={"alarmes": 0, "mundial": 1, "relogio": 2}[args.tab],
+        tema=tema,
+    )
     root.protocol("WM_DELETE_WINDOW", app.fechar)
     try:
         root.mainloop()

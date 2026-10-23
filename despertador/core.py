@@ -23,6 +23,7 @@ __version__ = "1.3.0"
 
 APP_NAME = "despertador"
 ARQUIVO_ALARMES = "alarms.json"
+ARQUIVO_CONFIG_GUI = "gui.json"
 
 DIAS_CURTOS = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"]
 DIAS_ALIASES = {
@@ -240,6 +241,41 @@ def config_dir() -> Path:
 
 def arquivo_alarmes() -> Path:
     return config_dir() / ARQUIVO_ALARMES
+
+
+def arquivo_config_gui() -> Path:
+    """Preferências da GUI (tema etc.), no mesmo diretório dos alarmes."""
+    return config_dir() / ARQUIVO_CONFIG_GUI
+
+
+def carregar_config_gui(caminho: Path | None = None) -> dict:
+    """Lê as preferências da GUI; devolve o padrão se o arquivo faltar."""
+    arquivo = caminho or arquivo_config_gui()
+    try:
+        bruto = json.loads(arquivo.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"tema": "claro"}
+    if not isinstance(bruto, dict):
+        return {"tema": "claro"}
+    tema = bruto.get("tema")
+    if tema not in ("claro", "escuro"):
+        tema = "claro"
+    return {"tema": tema}
+
+
+def salvar_config_gui(config: dict, caminho: Path | None = None) -> None:
+    """Grava as preferências da GUI de forma atômica."""
+    arquivo = caminho or arquivo_config_gui()
+    tema = config.get("tema", "claro")
+    if tema not in ("claro", "escuro"):
+        raise ValueError(f"tema inválido: {tema!r} (use 'claro' ou 'escuro')")
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
+    temporario = arquivo.with_name(arquivo.name + ".tmp")
+    temporario.write_text(
+        json.dumps({"tema": tema}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporario, arquivo)
 
 
 def _estado_vazio() -> dict:
