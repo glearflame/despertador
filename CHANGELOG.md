@@ -4,6 +4,32 @@ Todas as mudanças relevantes do Despertador. Formato baseado em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e versionamento
 semântico.
 
+## [1.4.0] — 2026-10-23
+
+### Adicionado
+
+- **Serviço systemd de usuário** (`packaging/despertador.service`,
+  `packaging/despertador-run` e `packaging/install-service.sh`): mantém o laço
+  de alarmes rodando com o app fechado, adquire o inhibitor do logind e toca
+  mesmo sem TTY. Instalação/remoção sem `sudo`, idempotente, e log via
+  `journalctl --user -u despertador -f`.
+- Opção `--continuo` em `run`/`inhibit`: depois de tocar no modo não
+  interativo, o laço segue para os próximos alarmes (usada pelo serviço).
+- **Tema escuro** na GUI, com alternância no cabeçalho e preferência persistida
+  em `$XDG_CONFIG_HOME/despertador/gui.json`; opção `--tema claro|escuro`.
+- GIF de demonstração real em `docs/screenshots/demo.gif` e capturas dos dois
+  temas.
+- Templates de issue (`bug.yml` e `feature.yml`) com versão, distro, forma de
+  instalação e logs.
+- Testes para as preferências da GUI (153 testes no total).
+
+### Corrigido
+
+- **tzdata no AppImage:** o build copia `/usr/share/zoneinfo` para dentro do
+  bundle e o `zoneinfo` passa a usar esse diretório quando congelado. O relógio
+  mundial resolve fusos IANA mesmo em distros sem tzdata do sistema e com
+  `PYTHONTZPATH`/`TZDIR` apontando para caminho inexistente.
+
 ## [1.3.0] — 2026-10-22
 
 ### Corrigido

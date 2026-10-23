@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 APP_NAME = "despertador"
 ARQUIVO_ALARMES = "alarms.json"
