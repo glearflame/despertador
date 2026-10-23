@@ -2,17 +2,21 @@
 
 [![CI](https://github.com/glearflame/despertador/actions/workflows/ci.yml/badge.svg)](https://github.com/glearflame/despertador/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.12-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen)](https://github.com/glearflame/despertador/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-153%20passing-brightgreen)](https://github.com/glearflame/despertador/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+![Demonstração do Despertador](docs/screenshots/demo.gif)
 
 Despertador para Linux com **interface gráfica em Tkinter** e **linha de comando**,
 em **Python puro** (só biblioteca padrão, nenhuma dependência no runtime).
-Versão atual: **1.3.0** — veja o [CHANGELOG.md](CHANGELOG.md).
+Versão atual: **1.4.0** — veja o [CHANGELOG.md](CHANGELOG.md).
 
-> **Aviso importante:** os alarmes só tocam com o aplicativo aberto
-> (`./despertador_gui.py`) ou com o laço da CLI rodando (`./despertador.py run`).
-> Não há daemon nem integração com systemd; ao abrir depois de um horário
-> perdido, ocorrências das últimas 2 horas ainda disparam.
+> **Alarme com o app fechado:** instale o serviço de usuário
+> (`packaging/install-service.sh`). Ele roda o laço da CLI em segundo plano,
+> adquire o inhibitor do logind e toca os alarmes mesmo sem a GUI aberta e sem
+> terminal. A GUI e o `./despertador.py run` continuam funcionando como antes;
+> ao abrir depois de um horário perdido, ocorrências das últimas 2 horas ainda
+> disparam.
 
 ## Requisitos
 
@@ -20,8 +24,8 @@ Versão atual: **1.3.0** — veja o [CHANGELOG.md](CHANGELOG.md).
 - Opcional: um player de áudio (`paplay`, `aplay`, `ffplay` ou
   `canberra-gtk-play`). Sem player, o app usa a campainha do terminal/Tk.
 - Opcional: `notify-send` para notificações de desktop.
-- O relógio mundial usa o banco tz do sistema via `zoneinfo` — **funciona
-  offline**, sem rede.
+- O relógio mundial usa `zoneinfo` — **funciona offline**, sem rede. No
+  AppImage o banco tzdata vai embutido; no repositório usa o do sistema.
 
 O runtime é 100% stdlib. `pytest` e `ruff` são usados apenas no desenvolvimento.
 
@@ -41,6 +45,16 @@ Opções úteis:
 ./despertador_gui.py --debug         # registra eventos no stderr
 ./despertador_gui.py --version
 ```
+
+### Tema claro e escuro
+
+O botão no cabeçalho alterna entre os temas **claro** e **escuro**. A escolha é
+persistida em `$XDG_CONFIG_HOME/despertador/gui.json` e aplicada na próxima
+abertura; também é possível forçar um tema com `--tema claro|escuro`.
+
+| Claro | Escuro |
+|---|---|
+| ![Tema claro](docs/screenshots/tema-claro.png) | ![Tema escuro](docs/screenshots/tema-escuro.png) |
 
 ### Aba Alarmes
 
@@ -84,6 +98,34 @@ São Paulo, UTC, Nova York, Londres, Tóquio e Sydney.
   zerar e aviso sonoro ao terminar, reaproveitando o mecanismo de som dos
   alarmes.
 
+## Serviço systemd (toca mesmo com o app fechado)
+
+O serviço de **usuário** mantém o laço de alarmes rodando em segundo plano. Não
+usa `sudo` e não altera arquivos do sistema.
+
+```bash
+./packaging/install-service.sh          # instala, habilita e inicia
+journalctl --user -u despertador -f     # acompanha o log
+systemctl --user status despertador     # estado atual
+./packaging/install-service.sh --remove # para e desinstala
+```
+
+O instalador é idempotente: copia `packaging/despertador.service` para
+`~/.config/systemd/user/`, cria o symlink `~/.local/bin/despertador-run` (o
+launcher resolve o diretório real do repositório), executa
+`systemctl --user daemon-reload` e `enable --now`.
+
+Como o serviço não tem TTY, ele roda com `--continuo`: ao chegar a hora, toca
+por `--ring-seconds` (60 s), registra o disparo e **continua o laço** para os
+próximos alarmes. O inhibitor do logind é adquirido enquanto houver alarme
+pendente, igual à GUI. Se o processo falhar, `Restart=on-failure` o reinicia em
+5 s. Para conferir:
+
+```bash
+systemd-analyze verify packaging/despertador.service
+systemd-inhibit --list | grep Despertador
+```
+
 ## AppImage (arquivo único para Linux)
 
 Para usar o app numa máquina **sem Python nem Tkinter instalados**, gere um
@@ -107,7 +149,8 @@ base), não usa `sudo` e faz o ciclo completo:
 3. gera o ícone 256×256 com ImageMagick (`scripts/make_icon.sh`, também
    disponível como `make icon`; o arquivo versionado é `docs/despertador.png`);
 4. empacota `despertador_gui.py` + pacote `despertador/` com
-   `pyinstaller --onefile --windowed --name despertador-app`;
+   `pyinstaller --onefile --windowed --name despertador-app`, incluindo o
+   banco **tzdata** completo (`/usr/share/zoneinfo` → `tzdata/zoneinfo`);
 5. monta o AppDir (`AppRun`, `despertador.desktop`, `despertador.png`,
    `usr/bin/despertador-app`);
 6. baixa o `appimagetool` oficial (só na primeira vez, com cache em
@@ -140,14 +183,16 @@ Aceita os mesmos argumentos da GUI, por exemplo
 APPIMAGE_EXTRACT_AND_RUN=1 ./dist/Despertador-x86_64.AppImage
 ```
 
-- O relógio mundial continua usando o banco de fusos do sistema
-  (`/usr/share/zoneinfo`); sem `tzdata`, restam UTC e os fusos fixos.
+- O relógio mundial funciona **sem tzdata do sistema**: o build copia
+  `/usr/share/zoneinfo` para dentro do AppImage e o app aponta o `zoneinfo`
+  para esse diretório quando está empacotado. Assim `Asia/Tokyo`,
+  `America/Sao_Paulo` e os demais fusos IANA resolvem mesmo em distros mínimas.
 
 ### Tamanho
 
-Aproximadamente **15 MB** por build (CPython + Tcl/Tk + runtime squashfs
-embutidos). No build validado da versão 1.3.0: **14.924.280 bytes ≈ 14,2 MiB**
-(`ls -lh` mostra `15M`). O valor exato sai no fim do build com
+Aproximadamente **15 MB** por build (CPython + Tcl/Tk + tzdata + runtime
+squashfs embutidos). No build validado da versão 1.4.0: **15.530.488 bytes
+≈ 14,8 MiB** (`ls -lh` mostra `15M`). O valor exato sai no fim do build com
 `ls -lh dist/`.
 
 ### Verificação
@@ -292,10 +337,15 @@ gravação atômica (`os.replace`). Se o JSON estiver corrompido, o programa avi
 copia o arquivo antigo para `alarms.json.bak` e começa com a lista vazia.
 
 Cidades do relógio mundial em `$XDG_CONFIG_HOME/despertador/worldclock.json`.
+Preferências da GUI (tema) em `$XDG_CONFIG_HOME/despertador/gui.json`.
 
 ## Estrutura do projeto
 
 ```text
+packaging/
+    despertador.service   # unit systemd de usuário
+    despertador-run       # launcher que resolve o diretório do repo
+    install-service.sh    # instala/remove o serviço (sem sudo)
 despertador.py            # CLI (mesmo comportamento de antes)
 despertador_gui.py        # aplicativo Tkinter (executável)
 despertador/
@@ -316,7 +366,7 @@ tests/
 ## Desenvolvimento
 
 ```bash
-make check   # ruff + pytest (150 testes)
+make check   # ruff + pytest (153 testes)
 make lint
 make test
 make gui     # atalho para ./despertador_gui.py
@@ -327,11 +377,12 @@ funções de parsing/offset são puras.
 
 ## Limitações reais
 
-- Alarme e temporizador só tocam com o app (ou `run`) aberto.
+- O temporizador só toca com a GUI aberta; alarmes tocam com a GUI, com
+  `./despertador.py run` ou com o serviço systemd instalado.
 - A sincronização depende de APIs públicas; se ambas estiverem fora do ar, o
   app permanece offline e mostra o motivo.
-- Fusos e horários de verão vêm do banco tz do sistema; mantenha o pacote
-  `tzdata` atualizado para regras recentes.
+- No repositório, fusos e horários de verão vêm do `tzdata` do sistema;
+  mantenha-o atualizado. O AppImage embute uma cópia no momento do build.
 - Com vários alarmes vencidos ao mesmo tempo, a GUI mostra um por vez.
 - O som em loop depende do player instalado; sem player, usa a campainha.
 
