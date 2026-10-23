@@ -1,0 +1,88 @@
+name: Relatar um bug
+description: Algo não funcionou como esperado no Despertador?
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar! Quanto mais detalhes, mais rápido conseguimos corrigir.
+        Antes de abrir, confira se já existe uma issue parecida.
+
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Despertador
+      description: Saída de `./dist/Despertador-x86_64.AppImage --version` ou `./despertador.py --version`.
+      placeholder: "1.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distribuição e versão
+      placeholder: "Kali 2026.1, Ubuntu 24.04, Fedora 42..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: instalacao
+    attributes:
+      label: Como você instalou / executa?
+      options:
+        - AppImage (dist/Despertador-x86_64.AppImage)
+        - Repositório (./despertador_gui.py ou ./despertador.py)
+        - Serviço systemd de usuário (packaging/install-service.sh)
+        - Outro
+    validations:
+      required: true
+
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      description: O que você fez, na ordem, até o problema aparecer?
+      placeholder: |
+        1. Abri a aba Alarmes
+        2. Adicionei um alarme para 07:30
+        3. Fechei o app e esperei o horário
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+
+  - type: textarea
+    id: obtido
+    attributes:
+      label: Comportamento observado
+      description: Inclua mensagens de erro e capturas de tela, se possível.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs relevantes
+      description: |
+        AppImage/GUI: rode com `--debug` e cole o stderr.
+        Serviço: `journalctl --user -u despertador -n 100 --no-pager`.
+        Informe também `systemctl --user status despertador` se aplicável.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checagens
+    attributes:
+      label: Checagens rápidas
+      options:
+        - label: Testei com a versão mais recente (1.4.0)
+          required: true
+        - label: Procurei issues duplicadas
+          required: true

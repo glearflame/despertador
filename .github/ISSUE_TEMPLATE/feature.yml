@@ -1,0 +1,70 @@
+name: Sugerir uma funcionalidade
+description: Ideia para melhorar o Despertador?
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Descreva o problema que você quer resolver — a solução proposta é bem-vinda,
+        mas o contexto de uso é o mais importante.
+
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Despertador
+      placeholder: "1.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distribuição e ambiente gráfico
+      placeholder: "Debian 13, GNOME 48 / X11"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: instalacao
+    attributes:
+      label: Como você usa hoje?
+      options:
+        - AppImage
+        - Repositório (Python do sistema)
+        - Serviço systemd de usuário
+        - CLI em primeiro/segundo plano
+        - Outro
+    validations:
+      required: true
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isso resolve?
+      placeholder: "Hoje preciso de X, mas o app só faz Y..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Solução proposta
+      description: Como você imagina a funcionalidade na interface ou na CLI?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+    validations:
+      required: false
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: Capturas, exemplos de outros apps, links.
+    validations:
+      required: false
