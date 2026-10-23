@@ -9,14 +9,31 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
+import zoneinfo
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 from .core import config_dir
+
+
+def _tzpath_embutido() -> Path | None:
+    """Diretório tzdata embutido pelo PyInstaller, quando existir."""
+    if not getattr(sys, "frozen", False):
+        return None
+    base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    candidato = base / "tzdata" / "zoneinfo"
+    return candidato if candidato.is_dir() else None
+
+
+_EMBUTIDO = _tzpath_embutido()
+if _EMBUTIDO is not None:
+    # Ignora TZPATH/TZDIR do sistema: o AppImage traz o banco completo.
+    zoneinfo.reset_tzpath([str(_EMBUTIDO)])
 
 URL_WORLDTIMEAPI = "https://worldtimeapi.org/api/timezone/{zona}"
 URL_TIMEAPI = "https://timeapi.io/api/Time/current/zone?timeZone={zona}"

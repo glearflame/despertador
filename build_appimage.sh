@@ -114,6 +114,12 @@ gerar_icone() {
 empacotar() {
     log "empacotando com PyInstaller (--onefile --windowed)"
     local pyi_dist="$BUILD_DIR/pyinstaller-dist"
+    local tzdir="${TZDATA_DIR:-/usr/share/zoneinfo}"
+
+    if [ ! -d "$tzdir" ]; then
+        die "banco tzdata não encontrado em $tzdir (defina TZDATA_DIR)"
+    fi
+    log "embutindo tzdata de $tzdir ($(du -sh "$tzdir" 2>/dev/null | cut -f1))"
 
     "${PYINSTALLER_CMD[@]}" \
         --noconfirm \
@@ -130,6 +136,7 @@ empacotar() {
         --hidden-import tkinter.filedialog \
         --hidden-import tkinter.messagebox \
         --collect-data tkinter \
+        --add-data "$tzdir:tzdata/zoneinfo" \
         --log-level WARN \
         "$ENTRY_POINT"
 
